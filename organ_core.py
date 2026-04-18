@@ -7,54 +7,52 @@ import datetime
 
 # --- GENETIC ALGORITHM BASE ---
 import numpy as np
+import qutip as qt
 
-# Discovery 028 — Biological Quantum Fourier Transform
-# Anchors: 022 (2727Hz→33THz), 023 (BISA opcodes), 026 (quantum gate), 027 (register)
+# Define system parameters
+num_qubits = 2  # Number of qubits in the system
+gamma = 0.1     # Noise rate (dissipation coefficient)
+omega = 1.0     # System frequency
+t_max = 10.0    # Maximum simulation time
+dt = 0.01       # Time step
 
-hbar = 1.0545718e-34
-delta_eps_J = 1345 * 1.986e-23
-t = 13.174e-15
-omega = delta_eps_J / hbar
+# Define Pauli matrices
+sigma_x = qt.sigmax()
+sigma_y = qt.sigmay()
+sigma_z = qt.sigmaz()
+identity = qt.qeye(2)
 
-N = 3
-dim = 2**N  # 8 — phone safe, scales by induction to 256
+# Define the Hamiltonian (time-dependent)
+def hamiltonian(t, args):
+    omega = args['omega']
+    return omega * sigma_x
 
-# Build QFT matrix
-omega_n = np.exp(2*np.pi*1j/dim)
-QFT = np.array([[omega_n**(j*k) for k in range(dim)]
-                for j in range(dim)]) / np.sqrt(dim)
+# Define Lindblad operators (time-dependent noise-assisted computation)
+def lindblad_operators(t, args):
+    gamma = args['gamma']
+    return [np.sqrt(gamma) * sigma_z]
 
-# Proof 1: Unitarity UU†=I
-err1 = np.max(np.abs(QFT@QFT.conj().T - np.eye(dim)))
-assert err1 < 1e-13, f'FAIL unitarity {err1}'
-print(f'Proof1 UU†=I error={err1:.3e} PASS')
+# Define initial state (pure state |0>)
+initial_state = qt.basis(2, 0)
 
-# Proof 2: Uniform superposition
-psi = np.zeros(dim, dtype=complex); psi[0] = 1.0
-out = QFT @ psi
-probs = np.abs(out)**2
-err2 = np.max(np.abs(probs - 1/dim))
-assert err2 < 1e-14, f'FAIL superposition {err2}'
-print(f'Proof2 uniform superposition error={err2:.3e} PASS')
+# Time-dependent coefficients
+args = {'omega': omega, 'gamma': gamma}
 
-# Proof 3: Inverse QFT†QFT=I
-err3 = np.max(np.abs(QFT.conj().T @ QFT - np.eye(dim)))
-assert err3 < 1e-13, f'FAIL inverse {err3}'
-print(f'Proof3 QFT†QFT=I error={err3:.3e} PASS')
+# Solve the Lindblad master equation
+times = np.arange(0, t_max, dt)
+result = qt.mesolve(
+    H=hamiltonian, 
+    rho0=initial_state, 
+    tlist=times, 
+    c_ops=lindblad_operators, 
+    args=args
+)
 
-# Proof 4: Mathematical induction
-print(f'Proof4 mathematical: 3-qubit QFT extends to 8-qubit by tensor induction QED')
+# Plot the results
+qt.plot_expectation_values(result, [sigma_x, sigma_y, sigma_z], title="Noise-Assisted Lindblad Dynamics")
 
-# Biological anchors
-print(f'Anchor 022: QFT maps biological clock 2727Hz to 33THz frequency domain')
-print(f'Anchor 023: QFT maps all 8 BISA opcodes to frequency domain')
-print(f'Anchor 026: QFT built from verified biological quantum gate U=exp(-iHt/hbar)')
-print(f'Anchor 027: QFT operates on verified 8-qubit biological register')
-print(f'omega_n={omega_n:.6f}')
-print(f'dim={dim} states')
-
-print('VERIFIED')
-
+# Save the results to a file
+np.savetxt("lindblad_simulation_results.csv", np.column_stack([times, result.expect[0], result.expect[1], result.expect[2]]), delimiter=",", header="time,<sigma_x>,<sigma_y>,<sigma_z>")
 
 # --- NOISE-ASSISTED COMPUTE ENGINE ---
 def run_quantum_state():
