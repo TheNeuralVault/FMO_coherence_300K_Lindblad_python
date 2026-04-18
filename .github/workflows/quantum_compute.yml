@@ -5,14 +5,21 @@ on:
   push:
     branches:[ "main" ]
 jobs:
-  quantum-organ-compute:
+  run-quantum-organ:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install dependencies
-      run: pip install numpy scipy
-    - name: Run Quantum Monitor
-      run: python3 monitor_ai.py
+    - run: pip install numpy scipy
+    - run: python3 organ_core.py
+    - name: Commit Compute Results
+      run: |
+        git config --global user.name "QEA-Organ-Compute"
+        git config --global user.email "organ@qeaprime.local"
+        git add compute_results.log
+        git commit -m "Autonomic Compute Cycle Logged" || exit 0
+        git push
