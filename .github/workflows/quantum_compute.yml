@@ -1,0 +1,18 @@
+name: FMO_coherence_300K_Lindblad_python Compute Matrix
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  push:
+    branches:[ "main" ]
+jobs:
+  quantum-organ-compute:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: pip install numpy scipy
+    - name: Run Quantum Monitor
+      run: python3 monitor_ai.py
